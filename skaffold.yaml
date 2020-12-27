@@ -1,10 +1,58 @@
+
+#
+#apiVersion: skaffold/v2beta10
+#kind: Config
+#build:
+#  # only build and deploy "world-service" on main profile
+#  artifacts:
+#    - image: skaffold-world
+#      context: world-service
+#deploy:
+#  kubectl:
+#    manifests:
+#      - 'world-service/*.yaml'
+#
+#profiles:
+#  - name: k3d-profile
+#    # automatically activate this profile when current context is "minikube"
+#    activation:
+#      - kubeContext: k3d-fran
+#    build:
+#      # only build and deploy "hello-service" on minikube profile
+#      artifacts:
+#        - image: skaffold-hello
+#          context: hello-service
+#    deploy:
+#      kubectl:
+#        manifests:
+#          - 'hello-service/*.yaml'
+#
+#  - name: staging-profile
+#    build:
+#      # build and deploy both services on "staging"
+#      artifacts:
+#        - image: skaffold-hello
+#          context: hello-service
+#        - image: skaffold-world
+#          context: world-service
+#    deploy:
+#      # use context "staging" for staging-profile
+#      kubeContext: k3d-staging
+#      kubectl:
+#        manifests:
+#          - '**/*.yaml'
+
+
+
+
 # To learn more about the skaffold.yaml schema visit
 # https://skaffold.dev/docs/references/yaml/
-apiVersion: skaffold/v2beta4
+apiVersion: skaffold/v2beta10
 kind: Config
 build:
   tagPolicy:
-    sha256: {}
+    envTemplate:
+      template: '{{.DOCKER_REGISTRY}}/{{.IMAGE_NAME}}'
   # defines where to find the code at build time and where to push the resulting image
   artifacts:
     - image: java-guestbook-backend
@@ -32,6 +80,9 @@ profiles:
 # use the dockerfile profile to build images using Docker instead of Jib
 - name: dockerfile
   build:
+    tagPolicy:
+      envTemplate:
+        template: '{{.DOCKER_REGISTRY}}/{{.IMAGE_NAME}}:{{.VERSION}}'
     local:
       push: true
     artifacts:
@@ -39,6 +90,33 @@ profiles:
         context: backend
       - image: java-guestbook-frontend
         context: frontend
+  deploy: # I'm putting it here because I have not artifacts for the loadbenerator in docker file and if I use the other one it will try to deploy loadgenerator as well
+    kubectl:
+      manifests:
+        - ./kubernetes-manifests/*.service.yaml
+        - ./kubernetes-manifests/*.deployment.yaml
+#  deploy:
+#    helm:
+#      releases:
+#        - name: serviceA
+#          chartPath: charts/serviceA
+#          setValueTemplates:
+#            image.repository: '{{.DIGEST}}'
+- name: buildpacks
+  build:
+    local:
+      push: true
+    artifacts:
+    - image: java-guestbook-backend
+      buildpacks:
+        builder: "gcr.io/buildpacks/builder:v1"
+        env:
+          - GOOGLE_RUNTIME_VERSION=8
+    - image: java-guestbook-frontend
+      buildpacks:
+        builder: "gcr.io/buildpacks/builder:v1"
+        env:
+          - GOOGLE_RUNTIME_VERSION=8
   deploy: # I'm putting it here because I have not artifacts for the loadbenerator in docker file and if I use the other one it will try to deploy loadgenerator as well
     kubectl:
       manifests:
