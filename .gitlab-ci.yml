@@ -1,0 +1,21 @@
+services:
+  - docker:dind
+
+stages:
+  - build
+
+variables:
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: ""
+  DOCKER_HOST: tcp://docker:2375
+build:
+  image:
+    name: gcr.io/k8s-skaffold/skaffold:latest
+  stage: build
+  before_script:
+    - docker info
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - skaffold run
+  only:
+    - master
