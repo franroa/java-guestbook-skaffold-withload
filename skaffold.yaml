@@ -23,16 +23,24 @@ deploy:
     manifests:
     - ./kubernetes-manifests/*.service.yaml
     - ./kubernetes-manifests/*.deployment.yaml
+    - ./loadgenerator-manifest/*.deployment.yaml
 profiles:
-# use the cloudbuild profile to build images using Google Cloud Build
-- name: cloudbuild
-  build:
-    googleCloudBuild: {}
+## use the cloudbuild profile to build images using Google Cloud Build
+#- name: cloudbuild
+#  build:
+#    googleCloudBuild: {}
 # use the dockerfile profile to build images using Docker instead of Jib
 - name: dockerfile
   build:
+    local:
+      push: true
     artifacts:
       - image: java-guestbook-backend
         context: backend
       - image: java-guestbook-frontend
         context: frontend
+  deploy: # I'm putting it here because I have not artifacts for the loadbenerator in docker file and if I use the other one it will try to deploy loadgenerator as well
+    kubectl:
+      manifests:
+        - ./kubernetes-manifests/*.service.yaml
+        - ./kubernetes-manifests/*.deployment.yaml
